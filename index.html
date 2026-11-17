@@ -320,6 +320,19 @@ img{max-width:100%}
 .copyrow .ri{width:34px;height:34px;border-radius:50%;background:var(--card);display:grid;place-items:center;flex:none}
 .shape{cursor:pointer}
 .confirm{border-radius:18px;padding:14px;background:var(--blushSoft);display:flex;flex-direction:column;gap:10px}
+
+/* ---------- phones: the page itself scrolls, so the browser tucks its bars away ---------- */
+@media (max-width:759px){
+  html,body{height:auto}
+  html{background:var(--ground)}
+  body{overflow:visible;overflow-x:hidden;background:var(--ground)}
+  .stage-wrap{height:auto;display:block}
+  .phone{height:auto;min-height:100vh;min-height:100dvh;overflow:visible;margin:0 auto}
+  .scroll{flex:none;overflow:visible}
+  .nav{position:fixed;max-width:432px;margin-inline:auto}
+  .scrim,.reader,.toast{position:fixed}
+  .sheet,.reader{overscroll-behavior:contain}
+}
 </style>
 </head>
 <body>
@@ -943,9 +956,11 @@ function ProfileMenu(){
       <button class="ib" data-a="menuclose" aria-label="Close">${ic('x')}</button></div>
     ${body}</div></div>`;
 }
+const PAGE_SCROLL = ()=> window.matchMedia('(max-width:759px)').matches;
+const scroller = ()=> PAGE_SCROLL() ? (document.scrollingElement||document.documentElement) : document.getElementById('scroll');
 function render(nav){
   const ph=document.getElementById('phone'); if(!ph) return;
-  const sc=document.getElementById('scroll'); const keep = (!nav && sc) ? sc.scrollTop : 0;
+  const sc=scroller(); const keep = (!nav && sc) ? sc.scrollTop : 0;
   const ae=document.activeElement; const fid=(!nav && ae && ae.id && /INPUT|TEXTAREA/.test(ae.tagName)) ? [ae.id, ae.selectionStart, ae.selectionEnd] : null;
   let out;
   try{ out = !D.onboarded ? Onboarding() : (SCREENS[cur().s]||SCREENS.home)(cur().p||{}); }
@@ -953,7 +968,7 @@ function render(nav){
   const showNav = D.onboarded && !out.nonav;
   ph.innerHTML = `<div class="scroll ${showNav?'':'nonav'}" id="scroll"><div class="screen" style="${nav?'':'animation:none'}">${out.html}</div></div>`
     + (showNav?NavBar():'') + (N.sheet?Sheet():'') + (N.reader?Reader():'') + (N.menu?ProfileMenu():'');
-  const s2=document.getElementById('scroll'); if(s2) s2.scrollTop = keep;
+  const s2=scroller(); if(s2) s2.scrollTop = keep;
   if(fid){ const el=document.getElementById(fid[0]); if(el){ try{ el.focus({preventScroll:true}); if(el.setSelectionRange && fid[1]!=null) el.setSelectionRange(fid[1],fid[2]); }catch(e){} } }
   hydrateMedia();
 }
@@ -1712,6 +1727,19 @@ document.addEventListener('click', ev=>{
   ev.preventDefault(); try{ fn(...args); }catch(err){ console.error(err); toast('Something went wrong'); }
 });
 document.addEventListener('keydown', ev=>{ if(ev.key==='Escape'){ if(N.menu){ N.menu=null; render(); } else if(N.reader){ N.reader=null; render(); } else if(N.sheet){ ACT.closesheet(); } } });
+/* ---------- full screen on the visitor's first tap, where the browser allows it (Android, iPad) ---------- */
+(function(){
+  const installed = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone;
+  const touch = matchMedia('(pointer:coarse)').matches;
+  const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (installed || !touch || !req || window.self !== window.top) return;
+  const go = () => {
+    document.removeEventListener('click', go, true);
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    try { const r = req.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+  };
+  document.addEventListener('click', go, true);
+})();
 render(true);
 
 </script>
